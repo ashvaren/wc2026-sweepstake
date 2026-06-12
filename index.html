@@ -32,15 +32,15 @@
 -->
 <script>
 window.FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyAtgl8Keg4Q4Koowpgzq8GX8PTudE4gkm8",
-  authDomain:        "wc2026-sweepstake-73b8d.firebaseapp.com",
-  databaseURL:       "https://wc2026-sweepstake-73b8d-default-rtdb.firebaseio.com",
-  projectId:         "wc2026-sweepstake-73b8d",
-  storageBucket:     "wc2026-sweepstake-73b8d.firebasestorage.app",
-  messagingSenderId: "1005861329483",
-  appId:             "1:1005861329483:web:3dcc160f933d72ab304bce"
+  apiKey:            "PASTE_FIREBASE_API_KEY",
+  authDomain:        "PASTE_PROJECT_ID.firebaseapp.com",
+  databaseURL:       "https://PASTE_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId:         "PASTE_PROJECT_ID",
+  storageBucket:     "PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId:             "PASTE_APP_ID"
 };
-window.WORKER_URL = "https://wc2026-proxy.mike-bc0.workers.dev"; // e.g. https://wc2026-proxy.yourname.workers.dev
+window.WORKER_URL = "PASTE_YOUR_WORKER_URL_HERE"; // e.g. https://wc2026-proxy.yourname.workers.dev
 </script>
 
 <div id="root"></div>
@@ -93,13 +93,18 @@ const PC=[
 ];
 const MDL=["🥇","🥈","🥉","4","5"];
 
+// Teams-per-player allocations across the 4 ranked pots
+// [pot1, pot2, pot3, pot4] — always 1 elite each; rest scales with count
+const DRAW_CONFIG={5:[1,1,1,2],6:[1,1,2,2],7:[1,2,2,2],8:[1,2,3,2],9:[1,2,3,3]};
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-function runDraw(){
+function runDraw(tpp){
+  const[n1,n2,n3,n4]=DRAW_CONFIG[tpp]||DRAW_CONFIG[9];
   const p1=shuffle(TEAMS.filter(t=>t.pot===1)),p2=shuffle(TEAMS.filter(t=>t.pot===2)),
         p3=shuffle(TEAMS.filter(t=>t.pot===3)),p4=shuffle(TEAMS.filter(t=>t.pot===4));
   const a={};
-  for(let i=0;i<5;i++) a[i]=[p1[i].name,p2[i].name,p2[i+5].name,p3[i].name,p3[i+5].name,p3[i+10].name,p4[i].name,p4[i+5].name,p4[i+10].name];
-  return{a,c:[p4[15].name,p4[16].name,p4[17].name]};
+  for(let i=0;i<5;i++) a[i]=[...p1.slice(i*n1,(i+1)*n1),...p2.slice(i*n2,(i+1)*n2),...p3.slice(i*n3,(i+1)*n3),...p4.slice(i*n4,(i+1)*n4)].map(t=>t.name);
+  const assigned=new Set(Object.values(a).flat());
+  return{a,c:TEAMS.filter(t=>!assigned.has(t.name)).map(t=>t.name)};
 }
 function ts(tn,sc){const s=sc[tn]||{gp:0,stage:"Group"};return(s.gp||0)+(SBON[s.stage]||0);}
 function pt(idx,a,c,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,n)=>s+ts(n,sc),0);t+=c.reduce((s,n)=>s+ts(n,sc)/5,0);return Math.round(t*10)/10;}
@@ -155,7 +160,7 @@ function App(){
   const[asgn,setAsgn]=useState(null);
   const[comm,setComm]=useState([]);
   const[sc,setSc]=useState({});
-  const[drawing,setDrawing]=useState(false);
+  const[drawing,setDrawing]=useState(false);const[tpp,setTpp]=useState(9);
   const[syncing,setSyncing]=useState(false);
   const[lastSync,setLastSync]=useState(null);
   const[syncErr,setSyncErr]=useState(false);
@@ -166,7 +171,7 @@ function App(){
 
   useEffect(()=>{
     const u1=fbListen("wc26/setup",d=>{
-      if(d){setNames(d.names||["","","","",""]);setAsgn(d.asgn||null);setComm(d.comm||[]);
+      if(d){setNames(d.names||["","","","",""]);setAsgn(d.asgn||null);setComm(d.comm||[]);if(d.tpp)setTpp(d.tpp);
         if(d.asgn)setTab(t=>t==="setup"?"leaderboard":t);}
       setFbOk(true);
     });
@@ -198,8 +203,8 @@ function App(){
     if(f.some(n=>!n)){alert("Please enter all 5 player names.");return;}
     setDrawing(true);
     await new Promise(r=>setTimeout(r,1200));
-    const{a,c}=runDraw();
-    await fbSet("wc26/setup",{names:f,asgn:a,comm:c});
+    const{a,c}=runDraw(tpp);
+    await fbSet("wc26/setup",{names:f,asgn:a,comm:c,tpp});
     setDrawing(false);setTab("teams");
   }
 
@@ -258,7 +263,23 @@ function App(){
 
         {tab==="setup"&&(!asgn?(
           <>
-            <div style={S.hero}><div style={{fontSize:"3.5rem",marginBottom:"0.5rem"}}>🎱</div><h2 style={S.h2}>The Draw</h2><p style={S.mt}>Enter five names and run the draw. Each player gets 9 teams from four ranked pots, so everyone holds a genuine contender. The draw syncs live to everyone's device.</p></div>
+            <div style={S.hero}><div style={{fontSize:"3.5rem",marginBottom:"0.5rem"}}>🎱</div><h2 style={S.h2}>The Draw</h2><p style={S.mt}>Enter five names, choose how many teams each player gets, then run the draw. Each player receives one elite team plus a spread from the other ranked pots, so everyone holds a genuine contender.</p></div>
+            <div style={{background:"#0A1A10",border:"1px solid #1E4A2A",borderRadius:"0.75rem",padding:"1rem",marginBottom:"1.25rem"}}>
+              <div style={{fontSize:"0.75rem",color:"#5A8A6A",marginBottom:"0.6rem",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.05em"}}>Teams per player</div>
+              <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap",marginBottom:"0.5rem"}}>
+                {[5,6,7,8,9].map(n=>(
+                  <button key={n} onClick={()=>setTpp(n)} style={{padding:"0.4rem 0.9rem",borderRadius:"2rem",border:"1px solid",fontSize:"0.85rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",
+                    background:tpp===n?"#AAFF00":"transparent",
+                    color:tpp===n?"#060E09":"#5A8A6A",
+                    borderColor:tpp===n?"#AAFF00":"#1E4A2A"}}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div style={{fontSize:"0.75rem",color:"#3A6A4A"}}>
+                {tpp} teams × 5 players = {tpp*5} assigned &nbsp;·&nbsp; {48-tpp*5} in the community pot
+              </div>
+            </div>
             <div style={{marginBottom:"1.5rem"}}>
               {names.map((n,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:"0.75rem",marginBottom:"0.6rem"}}>

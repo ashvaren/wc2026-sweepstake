@@ -40,7 +40,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "1005861329483",
   appId:             "1:1005861329483:web:3dcc160f933d72ab304bce"
 };
-window.FOOTBALL_API_KEY = "e033c609e0f04b3b93d965391b6ed755";
+window.WORKER_URL = "https://wc2026-proxy.mike-bc0.workers.dev/"; // e.g. https://wc2026-proxy.yourname.workers.dev
 </script>
 
 <div id="root"></div>
@@ -105,13 +105,12 @@ function ts(tn,sc){const s=sc[tn]||{gp:0,stage:"Group"};return(s.gp||0)+(SBON[s.
 function pt(idx,a,c,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,n)=>s+ts(n,sc),0);t+=c.reduce((s,n)=>s+ts(n,sc)/5,0);return Math.round(t*10)/10;}
 
 async function fetchLive(){
-  const key=window.FOOTBALL_API_KEY;
-  if(!key||key.includes("PASTE"))return null;
+  const base=window.WORKER_URL;
+  if(!base||base.includes("PASTE"))return null;
   try{
-    const h={"X-Auth-Token":key};
     const [sr,mr]=await Promise.all([
-      fetch("https://api.football-data.org/v4/competitions/WC/standings",{headers:h}),
-      fetch("https://api.football-data.org/v4/competitions/WC/matches",{headers:h}),
+      fetch(base+"/standings"),
+      fetch(base+"/matches"),
     ]);
     if(!sr.ok||!mr.ok)throw new Error("API error "+sr.status);
     const [sd,md]=await Promise.all([sr.json(),mr.json()]);

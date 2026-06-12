@@ -32,7 +32,6 @@
 -->
 <script>
 window.FIREBASE_CONFIG = {
-apiKey:            "AIzaSyAtgl8Keg4Q4Koowpgzq8GX8PTudE4gkm8",
   authDomain:        "wc2026-sweepstake-73b8d.firebaseapp.com",
   databaseURL:       "https://wc2026-sweepstake-73b8d-default-rtdb.firebaseio.com",
   projectId:         "wc2026-sweepstake-73b8d",
@@ -76,7 +75,8 @@ const TEAMS=[
 const TL={};TEAMS.forEach(t=>{TL[t.name]=t;});
 
 const FD_NAME={"United States":"USA","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast",
-  "Turkey":"Türkiye","Bosnia and Herzegovina":"Bosnia","Congo DR":"DR Congo","Czech Republic":"Czechia","Curaçao":"Curacao"};
+  "Turkey":"Türkiye","Bosnia and Herzegovina":"Bosnia","Bosnia-Herzegovina":"Bosnia","Congo DR":"DR Congo",
+  "Czech Republic":"Czechia","Curaçao":"Curacao","Cape Verde Islands":"Cape Verde"};
 const norm=n=>FD_NAME[n]||n;
 
 const FD_STAGE={ROUND_OF_32:"R32",ROUND_OF_16:"R16",QUARTER_FINALS:"QF",SEMI_FINALS:"SF",THIRD_PLACE:"3rd",FINAL:"W"};
@@ -120,7 +120,7 @@ async function fetchLive(){
     if(!sr.ok||!mr.ok)throw new Error("API error "+sr.status);
     const [sd,md]=await Promise.all([sr.json(),mr.json()]);
     const gp={};
-    for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n)gp[n]=r.points||0;}}}
+    for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"||g.stage==="ALL"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n)gp[n]=r.points||0;}}}
     const reached={};
     const setR=(name,sk)=>{if(!name)return;if(!reached[name]||SORD[sk]>SORD[reached[name]])reached[name]=sk;};
     for(const m of(md.matches||[])){

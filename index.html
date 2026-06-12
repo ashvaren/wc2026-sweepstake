@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WC 2026 Sweepstake ⚽</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#060E09;color:#F0F0F0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+    input,select,button{font-family:inherit}
+  </style>
+</head>
+<body>
+
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  CONFIGURATION — edit the two blocks below           ║
+  ║                                                      ║
+  ║  1. Firebase: create a free project at               ║
+  ║     firebase.google.com → Realtime Database          ║
+  ║     → copy your web app config here                  ║
+  ║                                                      ║
+  ║  2. Football data: register free at                  ║
+  ║     football-data.org → copy your API key here       ║
+  ╚══════════════════════════════════════════════════════╝
+-->
+<script>
+window.FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyAtgl8Keg4Q4Koowpgzq8GX8PTudE4gkm8",
+  authDomain:        "wc2026-sweepstake-73b8d.firebaseapp.com",
+  databaseURL:       "https://wc2026-sweepstake-73b8d-default-rtdb.firebaseio.com",
+  projectId:         "wc2026-sweepstake-73b8d",
+  storageBucket:     "wc2026-sweepstake-73b8d.firebasestorage.app",
+  messagingSenderId: "1005861329483",
+  appId:             "1:1005861329483:web:3dcc160f933d72ab304bce"
+measurementId: "G-2G5EV7DRJ3"
+};
+window.FOOTBALL_API_KEY = "e033c609e0f04b3b93d965391b6ed755";
+</script>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+firebase.initializeApp(window.FIREBASE_CONFIG);
+const db = firebase.database();
+const fbSet    = (p,v)  => db.ref(p).set(v);
+const fbGet    = (p)    => db.ref(p).once('value').then(s=>s.val());
+const fbListen = (p,cb) => { const r=db.ref(p); r.on('value',s=>cb(s.val())); return ()=>r.off('value'); };
+
+const TEAMS=[
+  {name:"France",flag:"🇫🇷",pot:1},{name:"Spain",flag:"🇪🇸",pot:1},{name:"Argentina",flag:"🇦🇷",pot:1},
+  {name:"England",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pot:1},{name:"Portugal",flag:"🇵🇹",pot:1},
+  {name:"Brazil",flag:"🇧🇷",pot:2},{name:"Netherlands",flag:"🇳🇱",pot:2},{name:"Morocco",flag:"🇲🇦",pot:2},
+  {name:"Belgium",flag:"🇧🇪",pot:2},{name:"Germany",flag:"🇩🇪",pot:2},{name:"Croatia",flag:"🇭🇷",pot:2},
+  {name:"Colombia",flag:"🇨🇴",pot:2},{name:"Senegal",flag:"🇸🇳",pot:2},{name:"Mexico",flag:"🇲🇽",pot:2},
+  {name:"Uruguay",flag:"🇺🇾",pot:2},
+  {name:"USA",flag:"🇺🇸",pot:3},{name:"Japan",flag:"🇯🇵",pot:3},{name:"Switzerland",flag:"🇨🇭",pot:3},
+  {name:"Iran",flag:"🇮🇷",pot:3},{name:"Türkiye",flag:"🇹🇷",pot:3},{name:"Ecuador",flag:"🇪🇨",pot:3},
+  {name:"Austria",flag:"🇦🇹",pot:3},{name:"South Korea",flag:"🇰🇷",pot:3},{name:"Australia",flag:"🇦🇺",pot:3},
+  {name:"Canada",flag:"🇨🇦",pot:3},{name:"Norway",flag:"🇳🇴",pot:3},{name:"Egypt",flag:"🇪🇬",pot:3},
+  {name:"Paraguay",flag:"🇵🇾",pot:3},{name:"Ivory Coast",flag:"🇨🇮",pot:3},{name:"Czechia",flag:"🇨🇿",pot:3},
+  {name:"Algeria",flag:"🇩🇿",pot:4},{name:"Sweden",flag:"🇸🇪",pot:4},{name:"Scotland",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pot:4},
+  {name:"Tunisia",flag:"🇹🇳",pot:4},{name:"South Africa",flag:"🇿🇦",pot:4},{name:"Ghana",flag:"🇬🇭",pot:4},
+  {name:"DR Congo",flag:"🇨🇩",pot:4},{name:"Iraq",flag:"🇮🇶",pot:4},{name:"Saudi Arabia",flag:"🇸🇦",pot:4},
+  {name:"Qatar",flag:"🇶🇦",pot:4},{name:"Jordan",flag:"🇯🇴",pot:4},{name:"Cape Verde",flag:"🇨🇻",pot:4},
+  {name:"New Zealand",flag:"🇳🇿",pot:4},{name:"Uzbekistan",flag:"🇺🇿",pot:4},{name:"Bosnia",flag:"🇧🇦",pot:4},
+  {name:"Panama",flag:"🇵🇦",pot:4},{name:"Curacao",flag:"🇨🇼",pot:4},{name:"Haiti",flag:"🇭🇹",pot:4},
+];
+const TL={};TEAMS.forEach(t=>{TL[t.name]=t;});
+
+const FD_NAME={"United States":"USA","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast",
+  "Turkey":"Türkiye","Bosnia and Herzegovina":"Bosnia","Congo DR":"DR Congo","Czech Republic":"Czechia","Curaçao":"Curacao"};
+const norm=n=>FD_NAME[n]||n;
+
+const FD_STAGE={ROUND_OF_32:"R32",ROUND_OF_16:"R16",QUARTER_FINALS:"QF",SEMI_FINALS:"SF",THIRD_PLACE:"3rd",FINAL:"W"};
+const SORD={Group:0,R32:1,R16:2,QF:3,SF:4,"3rd":5,W:6};
+const SBON={Group:0,R32:3,R16:8,QF:15,SF:24,"3rd":28,W:40};
+const STAGES=["Group","R32","R16","QF","SF","3rd","W"];
+const SLBL={Group:"Group stage",R32:"Round of 32",R16:"Round of 16",QF:"Quarter-final",SF:"Semi-final","3rd":"Third place",W:"Champions 🏆"};
+const PC=[
+  {bg:"#3B82F6",lt:"rgba(59,130,246,0.15)",bd:"#3B82F6"},
+  {bg:"#10B981",lt:"rgba(16,185,129,0.15)",bd:"#10B981"},
+  {bg:"#F59E0B",lt:"rgba(245,158,11,0.15)", bd:"#F59E0B"},
+  {bg:"#EC4899",lt:"rgba(236,72,153,0.15)", bd:"#EC4899"},
+  {bg:"#8B5CF6",lt:"rgba(139,92,246,0.15)", bd:"#8B5CF6"},
+];
+const MDL=["🥇","🥈","🥉","4","5"];
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function runDraw(){
+  const p1=shuffle(TEAMS.filter(t=>t.pot===1)),p2=shuffle(TEAMS.filter(t=>t.pot===2)),
+        p3=shuffle(TEAMS.filter(t=>t.pot===3)),p4=shuffle(TEAMS.filter(t=>t.pot===4));
+  const a={};
+  for(let i=0;i<5;i++) a[i]=[p1[i].name,p2[i].name,p2[i+5].name,p3[i].name,p3[i+5].name,p3[i+10].name,p4[i].name,p4[i+5].name,p4[i+10].name];
+  return{a,c:[p4[15].name,p4[16].name,p4[17].name]};
+}
+function ts(tn,sc){const s=sc[tn]||{gp:0,stage:"Group"};return(s.gp||0)+(SBON[s.stage]||0);}
+function pt(idx,a,c,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,n)=>s+ts(n,sc),0);t+=c.reduce((s,n)=>s+ts(n,sc)/5,0);return Math.round(t*10)/10;}
+
+async function fetchLive(){
+  const key=window.FOOTBALL_API_KEY;
+  if(!key||key.includes("PASTE"))return null;
+  try{
+    const h={"X-Auth-Token":key};
+    const [sr,mr]=await Promise.all([
+      fetch("https://api.football-data.org/v4/competitions/WC/standings",{headers:h}),
+      fetch("https://api.football-data.org/v4/competitions/WC/matches",{headers:h}),
+    ]);
+    if(!sr.ok||!mr.ok)throw new Error("API error "+sr.status);
+    const [sd,md]=await Promise.all([sr.json(),mr.json()]);
+    const gp={};
+    for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n)gp[n]=r.points||0;}}}
+    const reached={};
+    const setR=(name,sk)=>{if(!name)return;if(!reached[name]||SORD[sk]>SORD[reached[name]])reached[name]=sk;};
+    for(const m of(md.matches||[])){
+      if(m.status!=="FINISHED")continue;
+      const sk=FD_STAGE[m.stage];if(!sk)continue;
+      const w=m.score?.winner;if(!w||w==="DRAW")continue;
+      const wn=norm(w==="HOME_TEAM"?m.homeTeam?.name:m.awayTeam?.name);
+      const ln=norm(w==="HOME_TEAM"?m.awayTeam?.name:m.homeTeam?.name);
+      setR(ln,sk);
+      if(m.stage!=="FINAL"&&m.stage!=="THIRD_PLACE")setR(wn,sk);
+    }
+    for(const m of(md.matches||[])){
+      if(m.status!=="FINISHED")continue;
+      const w=m.score?.winner;if(!w||w==="DRAW")continue;
+      const wn=norm(w==="HOME_TEAM"?m.homeTeam?.name:m.awayTeam?.name);
+      if(m.stage==="FINAL")setR(wn,"W");
+      if(m.stage==="THIRD_PLACE")setR(wn,"3rd");
+    }
+    return{gp,reached};
+  }catch(e){console.error("Live fetch:",e);return null;}
+}
+function merge(live,ex){
+  if(!live)return ex;
+  const r={...ex};
+  TEAMS.forEach(({name})=>{
+    const e=ex[name]||{gp:0,stage:"Group"};
+    const lg=live.gp[name]??e.gp;
+    const ls=live.reached[name]||"Group";
+    r[name]={gp:lg,stage:SORD[ls]>=SORD[e.stage]?ls:e.stage,auto:true};
+  });
+  return r;
+}
+
+function App(){
+  const[tab,setTab]=useState("setup");
+  const[names,setNames]=useState(["","","","",""]);
+  const[asgn,setAsgn]=useState(null);
+  const[comm,setComm]=useState([]);
+  const[sc,setSc]=useState({});
+  const[drawing,setDrawing]=useState(false);
+  const[syncing,setSyncing]=useState(false);
+  const[lastSync,setLastSync]=useState(null);
+  const[syncErr,setSyncErr]=useState(false);
+  const[tfilt,setTfilt]=useState(-1);
+  const[tsrch,setTsrch]=useState("");
+  const[spl,setSpl]=useState(0);
+  const[fbOk,setFbOk]=useState(false);
+
+  useEffect(()=>{
+    const u1=fbListen("wc26/setup",d=>{
+      if(d){setNames(d.names||["","","","",""]);setAsgn(d.asgn||null);setComm(d.comm||[]);
+        if(d.asgn)setTab(t=>t==="setup"?"leaderboard":t);}
+      setFbOk(true);
+    });
+    const u2=fbListen("wc26/sc",d=>{if(d)setSc(d);});
+    return()=>{u1();u2();};
+  },[]);
+
+  const doRefresh=useCallback(async()=>{
+    setSyncing(true);setSyncErr(false);
+    const live=await fetchLive();
+    if(live){
+      const cur=await fbGet("wc26/sc")||{};
+      await fbSet("wc26/sc",merge(live,cur));
+      setLastSync(new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}));
+    } else if(window.FOOTBALL_API_KEY&&!window.FOOTBALL_API_KEY.includes("PASTE")){
+      setSyncErr(true);
+    }
+    setSyncing(false);
+  },[]);
+
+  useEffect(()=>{
+    doRefresh();
+    const t=setInterval(doRefresh,10*60*1000);
+    return()=>clearInterval(t);
+  },[doRefresh]);
+
+  async function handleDraw(){
+    const f=names.map(n=>n.trim());
+    if(f.some(n=>!n)){alert("Please enter all 5 player names.");return;}
+    setDrawing(true);
+    await new Promise(r=>setTimeout(r,1200));
+    const{a,c}=runDraw();
+    await fbSet("wc26/setup",{names:f,asgn:a,comm:c});
+    setDrawing(false);setTab("teams");
+  }
+
+  async function handleReset(){
+    if(!confirm("Reset the draw and all scores? This cannot be undone."))return;
+    await fbSet("wc26/setup",null);await fbSet("wc26/sc",null);setTab("setup");
+  }
+
+  async function updSc(tn,field,val){
+    const cur=await fbGet("wc26/sc")||{};
+    await fbSet("wc26/sc",{...cur,[tn]:{...(cur[tn]||{gp:0,stage:"Group"}),[field]:val,auto:false}});
+  }
+
+  function owner(tn){
+    if(!asgn)return null;
+    for(let i=0;i<5;i++)if((asgn[i]||[]).includes(tn))return i;
+    if(comm.includes(tn))return"comm";
+    return null;
+  }
+
+  const board=asgn?names.map((n,i)=>({n,i,s:pt(i,asgn,comm,sc)})).sort((a,b)=>b.s-a.s):[];
+  const TABS=[{k:"setup",l:"Setup"},{k:"teams",l:"Teams",d:!asgn},{k:"scores",l:"Scores",d:!asgn},{k:"leaderboard",l:"Leaderboard",d:!asgn},{k:"rules",l:"Rules"}];
+  const S=CSS;
+
+  if(!fbOk)return(
+    <div style={{minHeight:"100vh",background:"#060E09",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"1rem"}}>
+      <div style={{fontSize:"2.5rem"}}>⚽</div>
+      <div style={{color:"#AAFF00"}}>Connecting…</div>
+      <div style={{color:"#3A6A4A",fontSize:"0.8rem",textAlign:"center",maxWidth:"280px"}}>Check your Firebase config in the HTML file if this persists</div>
+    </div>
+  );
+
+  return(
+    <div style={S.root}>
+      <header style={S.hdr}>
+        <div>
+          <div style={S.ey}>FIFA WORLD CUP 2026</div>
+          <div style={S.ht}>SWEEPSTAKE</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:"0.6rem"}}>
+          {syncing?<span style={{fontSize:"0.7rem",color:"#5A8A6A"}}>Updating…</span>
+           :syncErr?<span style={{fontSize:"0.7rem",color:"#EC4899"}}>API error</span>
+           :lastSync?<span style={{fontSize:"0.7rem",color:"#3A6A4A"}}>Updated {lastSync}</span>:null}
+          <button onClick={doRefresh} disabled={syncing} style={{background:"none",border:"none",cursor:"pointer",fontSize:"1.1rem",opacity:syncing?0.4:1}}>🔄</button>
+          <span style={{fontSize:"1.8rem"}}>⚽</span>
+        </div>
+      </header>
+
+      <nav style={S.nav}>
+        {TABS.map(t=>(
+          <button key={t.k} onClick={()=>!t.d&&setTab(t.k)} style={{...S.nb,color:tab===t.k?"#AAFF00":t.d?"#1E4A2A":"#5A8A6A",borderBottom:tab===t.k?"2px solid #AAFF00":"2px solid transparent",cursor:t.d?"not-allowed":"pointer"}}>{t.l}</button>
+        ))}
+      </nav>
+
+      <main style={S.main}>
+
+        {tab==="setup"&&(!asgn?(
+          <>
+            <div style={S.hero}><div style={{fontSize:"3.5rem",marginBottom:"0.5rem"}}>🎱</div><h2 style={S.h2}>The Draw</h2><p style={S.mt}>Enter five names and run the draw. Each player gets 9 teams from four ranked pots, so everyone holds a genuine contender. The draw syncs live to everyone's device.</p></div>
+            <div style={{marginBottom:"1.5rem"}}>
+              {names.map((n,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:"0.75rem",marginBottom:"0.6rem"}}>
+                  <div style={{width:"2rem",height:"2rem",borderRadius:"50%",background:PC[i].bg,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#fff",flexShrink:0}}>{i+1}</div>
+                  <input type="text" value={n} onChange={e=>{const x=[...names];x[i]=e.target.value;setNames(x);}} placeholder={`Player ${i+1}`} style={S.inp}/>
+                </div>
+              ))}
+            </div>
+            <button onClick={handleDraw} disabled={drawing} style={{...S.btn,opacity:drawing?0.6:1}}>{drawing?"🎱  Drawing…":"🎱  Run the Draw"}</button>
+          </>
+        ):(
+          <>
+            <div style={S.hero}><div style={{fontSize:"3.5rem",marginBottom:"0.5rem"}}>✅</div><h2 style={S.h2}>Draw Complete</h2><p style={S.mt}>Teams are assigned and syncing live. Share this page URL with the family — everyone sees the same leaderboard in real time.</p></div>
+            <div style={{marginBottom:"1rem"}}>
+              {names.map((nm,i)=>(
+                <div key={i} style={{...S.card,borderColor:PC[i].bd,background:PC[i].lt,marginBottom:"0.6rem"}}>
+                  <div style={{fontWeight:900,color:PC[i].bg,marginBottom:"0.4rem"}}>{nm}</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem"}}>{(asgn[i]||[]).map(tn=><span key={tn} style={S.pill}>{TL[tn]?.flag} {tn}</span>)}</div>
+                </div>
+              ))}
+              <div style={{...S.card,borderColor:"#AAFF00",background:"rgba(170,255,0,0.06)"}}>
+                <div style={{fontWeight:900,color:"#AAFF00",marginBottom:"0.4rem"}}>⭐ Community Pot</div>
+                <p style={{...S.mt,fontSize:"0.75rem",marginBottom:"0.5rem"}}>Points split equally between all players:</p>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem"}}>{comm.map(tn=><span key={tn} style={S.pill}>{TL[tn]?.flag} {tn}</span>)}</div>
+              </div>
+            </div>
+            <button onClick={handleReset} style={S.dngr}>Reset draw</button>
+          </>
+        ))}
+
+        {tab==="teams"&&asgn&&(
+          <div>
+            <h2 style={S.h2}>All 48 Teams</h2>
+            <input type="text" placeholder="Search…" value={tsrch} onChange={e=>setTsrch(e.target.value)} style={{...S.inp,marginBottom:"0.75rem"}}/>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"0.4rem",marginBottom:"1rem"}}>
+              <button onClick={()=>setTfilt(-1)} style={{...S.fb,background:tfilt===-1?"#AAFF00":"transparent",color:tfilt===-1?"#060E09":"#5A8A6A",borderColor:tfilt===-1?"#AAFF00":"#1E4A2A"}}>All</button>
+              {names.map((nm,i)=><button key={i} onClick={()=>setTfilt(tfilt===i?-1:i)} style={{...S.fb,background:tfilt===i?PC[i].bg:"transparent",color:tfilt===i?"#fff":PC[i].bg,borderColor:PC[i].bd}}>{nm}</button>)}
+              <button onClick={()=>setTfilt(tfilt===5?-1:5)} style={{...S.fb,background:tfilt===5?"#AAFF00":"transparent",color:tfilt===5?"#060E09":"#AAFF00",borderColor:"#AAFF00"}}>⭐ Comm.</button>
+            </div>
+            <div>
+              {TEAMS.filter(t=>t.name.toLowerCase().includes(tsrch.toLowerCase()))
+                .filter(t=>tfilt===-1||(tfilt===5?comm.includes(t.name):(asgn[tfilt]||[]).includes(t.name)))
+                .map(team=>{
+                  const ow=owner(team.name);const ic=ow==="comm";const col=(!ic&&ow!==null)?PC[ow]:null;
+                  const s=sc[team.name]||{gp:0,stage:"Group"};const pts=ts(team.name,sc);
+                  return(
+                    <div key={team.name} style={{...S.row,borderColor:ic?"#AAFF00":col?col.bd:"#1E4A2A",background:ic?"rgba(170,255,0,0.05)":col?col.lt:"#0A1A10"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
+                        <span style={{fontSize:"1.6rem"}}>{team.flag}</span>
+                        <div><div style={{fontWeight:700,fontSize:"0.9rem"}}>{team.name}</div><div style={{fontSize:"0.72rem",color:ic?"#AAFF00":col?col.bg:"#3A6A4A"}}>{ic?"⭐ Community":col?names[ow]:"—"}</div></div>
+                      </div>
+                      <div style={{textAlign:"right"}}><div style={{fontWeight:900,color:"#AAFF00"}}>{pts>0?pts:"—"}</div><div style={{fontSize:"0.7rem",color:"#3A6A4A"}}>{SLBL[s.stage]}</div></div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {tab==="scores"&&asgn&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.4rem"}}>
+              <h2 style={S.h2}>Scores</h2>
+              <button onClick={doRefresh} disabled={syncing} style={{...S.fb,borderColor:"#AAFF00",color:"#AAFF00",background:"transparent"}}>{syncing?"Updating…":"🔄 Refresh"}</button>
+            </div>
+            <p style={{...S.mt,marginBottom:"1rem"}}>Results auto-update from football-data.org every 10 minutes. Manual overrides are preserved on the next auto-refresh. Scores labelled "auto" were fetched from the API.</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"0.4rem",marginBottom:"1rem"}}>
+              {[...names.map((n,i)=>({l:n,i})),{l:"⭐ Comm.",i:5}].map(({l,i})=>(
+                <button key={i} onClick={()=>setSpl(i)} style={{...S.fb,background:spl===i?(i<5?PC[i].bg:"#AAFF00"):"transparent",color:spl===i?(i<5?"#fff":"#060E09"):(i<5?PC[i].bg:"#AAFF00"),borderColor:i<5?PC[i].bd:"#AAFF00"}}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+              {(spl<5?(asgn[spl]||[]):comm).map(tn=>{
+                const t=TL[tn];const s=sc[tn]||{gp:0,stage:"Group"};const pts=ts(tn,sc);
+                return(
+                  <div key={tn} style={S.card}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.75rem"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"0.6rem"}}>
+                        <span style={{fontSize:"1.5rem"}}>{t?.flag}</span>
+                        <div><span style={{fontWeight:700}}>{tn}</span>{s.auto&&<span style={{fontSize:"0.65rem",color:"#3A6A4A",marginLeft:"0.5rem"}}>auto</span>}</div>
+                      </div>
+                      <span style={{fontWeight:900,color:"#AAFF00",fontSize:"1.1rem"}}>{pts} pts</span>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.6rem"}}>
+                      <div>
+                        <label style={{display:"block",fontSize:"0.7rem",color:"#5A8A6A",marginBottom:"0.25rem"}}>Group pts (0–9)</label>
+                        <input type="number" min="0" max="9" value={s.gp||0} onChange={e=>updSc(tn,"gp",Math.max(0,Math.min(9,parseInt(e.target.value)||0)))} style={{...S.inp,padding:"0.5rem 0.75rem"}}/>
+                      </div>
+                      <div>
+                        <label style={{display:"block",fontSize:"0.7rem",color:"#5A8A6A",marginBottom:"0.25rem"}}>Stage reached</label>
+                        <select value={s.stage||"Group"} onChange={e=>updSc(tn,"stage",e.target.value)} style={{...S.inp,padding:"0.5rem 0.75rem"}}>
+                          {STAGES.map(s=><option key={s} value={s}>{SLBL[s]}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {tab==="leaderboard"&&asgn&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.25rem"}}>
+              <h2 style={{...S.h2,marginBottom:0}}>Leaderboard</h2>
+              {lastSync&&<span style={{fontSize:"0.7rem",color:"#3A6A4A"}}>Updated {lastSync}</span>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",marginBottom:"1.25rem"}}>
+              {board.map(({n,i,s},pos)=>(
+                <div key={i} style={{...S.card,borderColor:PC[i].bd,background:PC[i].lt}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.5rem"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
+                      <span style={{fontSize:"1.5rem"}}>{MDL[pos]}</span>
+                      <span style={{fontWeight:900,fontSize:"1.15rem"}}>{n}</span>
+                    </div>
+                    <span style={{fontWeight:900,fontSize:"1.6rem",color:PC[i].bg}}>{s}</span>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem"}}>
+                    {(asgn[i]||[]).map(tn=>{const pts=ts(tn,sc);return(<div key={tn} style={{...S.pill,borderLeft:pts>0?`3px solid ${PC[i].bg}`:"3px solid transparent"}}>{TL[tn]?.flag} {tn}{pts>0&&<strong style={{color:PC[i].bg}}> {pts}</strong>}</div>);})}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{...S.card,borderColor:"#AAFF00",background:"rgba(170,255,0,0.05)"}}>
+              <div style={{fontWeight:900,color:"#AAFF00",marginBottom:"0.4rem"}}>⭐ Community Pot</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem"}}>
+                {comm.map(tn=>{const pts=ts(tn,sc);return(<div key={tn} style={S.pill}>{TL[tn]?.flag} {tn}{pts>0&&<strong style={{color:"#AAFF00"}}> {pts}÷5</strong>}</div>);})}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab==="rules"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:"1.25rem"}}>
+            <div><h2 style={S.h2}>Rules</h2><p style={S.mt}>A sweepstake for five covering all 48 teams. Tournament runs 11 June – 19 July 2026.</p></div>
+            <div style={S.rc}><h3 style={S.rh}>The Draw</h3><ul style={S.rl}>
+              <li>Each player draws <b>9 teams</b> from four ranked pots: one elite, two strong, three mid-tier, and three underdogs. Everyone holds at least one genuine contender.</li>
+              <li>Three Pot 4 teams form the <b>Community Pot</b> — their points are divided equally between all five players.</li>
+              <li>Results auto-update from football-data.org. Hit 🔄 to refresh manually at any time.</li>
+            </ul></div>
+            <div style={S.rc}><h3 style={S.rh}>Scoring</h3>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.85rem"}}><tbody>
+                {[["Group stage win","3 pts per game"],["Group stage draw","1 pt per game"],["Group stage loss","0 pts"],["",""],
+                  ["Reaching Round of 32","+3 pts"],["Reaching Round of 16","+8 pts"],["Reaching Quarter-final","+15 pts"],
+                  ["Reaching Semi-final","+24 pts"],["Third place","+28 pts"],["Champions 🏆","+40 pts"]
+                ].map(([l,p],idx)=>!l?<tr key={idx}><td colSpan={2} style={{padding:"0.3rem 0"}}></td></tr>:(
+                  <tr key={idx} style={{borderBottom:"1px solid #1E4A2A"}}>
+                    <td style={{padding:"0.4rem 0",color:"#5A8A6A"}}>{l}</td>
+                    <td style={{padding:"0.4rem 0",textAlign:"right",fontWeight:700,color:p.includes("40")?"#AAFF00":"#F0F0F0"}}>{p}</td>
+                  </tr>
+                ))}
+              </tbody></table>
+              <p style={{fontSize:"0.75rem",color:"#5A8A6A",marginTop:"0.75rem"}}>Max possible score: <b style={{color:"#AAFF00"}}>49 pts</b> (3 group wins + champions)</p>
+            </div>
+            <div style={S.rc}><h3 style={S.rh}>Prize Pot</h3><p style={{...S.mt,marginBottom:"0.75rem"}}>£10 per player = £50</p>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.85rem"}}><tbody>
+                {[["🥇 Winner","£25"],["🥈 Runner-up","£15"],["🍺 Wooden spoon","Buys the drinks"]].map(([l,p])=>(
+                  <tr key={l} style={{borderBottom:"1px solid #1E4A2A"}}><td style={{padding:"0.4rem 0",color:"#5A8A6A"}}>{l}</td><td style={{padding:"0.4rem 0",textAlign:"right",fontWeight:700,color:p.includes("£")?"#AAFF00":p.includes("🍺")?"#EC4899":"#F0F0F0"}}>{p}</td></tr>
+                ))}
+              </tbody></table>
+              <p style={{fontSize:"0.75rem",color:"#5A8A6A",marginTop:"0.75rem"}}>Wooden spoon holder buys a round for the final on 19 July.</p>
+            </div>
+            <div style={S.rc}><h3 style={S.rh}>Tiebreaker</h3><ul style={S.rl}>
+              <li>If two players finish level, the one whose highest-ranked team went furthest wins.</li>
+              <li>If still tied, the organiser calls it — and everyone buys them a drink.</li>
+            </ul></div>
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
+
+const CSS={
+  root:{minHeight:"100vh",background:"#060E09",color:"#F0F0F0",fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",paddingBottom:"2rem"},
+  hdr:{background:"#060E09",borderBottom:"1px solid #1E4A2A",padding:"1rem 1.25rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10},
+  ey:{fontSize:"0.65rem",fontWeight:900,letterSpacing:"0.15em",color:"#AAFF00",marginBottom:"0.1rem"},
+  ht:{fontSize:"1.4rem",fontWeight:900,letterSpacing:"0.05em",lineHeight:1},
+  nav:{display:"flex",borderBottom:"1px solid #1E4A2A",background:"#060E09",position:"sticky",top:"58px",zIndex:9,overflowX:"auto"},
+  nb:{flex:"1 1 0",padding:"0.7rem 0.25rem",background:"none",border:"none",fontSize:"0.7rem",fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap",minWidth:0},
+  main:{maxWidth:"640px",margin:"0 auto",padding:"1.5rem 1rem"},
+  hero:{textAlign:"center",marginBottom:"2rem"},
+  h2:{fontSize:"1.4rem",fontWeight:900,marginBottom:"0.4rem",marginTop:0},
+  mt:{color:"#5A8A6A",fontSize:"0.85rem",lineHeight:1.5,margin:0},
+  inp:{width:"100%",boxSizing:"border-box",background:"#0A1A10",border:"1px solid #1E4A2A",borderRadius:"0.5rem",padding:"0.7rem 1rem",color:"#F0F0F0",fontSize:"0.9rem",outline:"none",fontFamily:"inherit"},
+  btn:{width:"100%",background:"#AAFF00",color:"#060E09",fontWeight:900,fontSize:"1rem",padding:"1rem",border:"none",borderRadius:"0.75rem",cursor:"pointer",letterSpacing:"0.04em"},
+  dngr:{background:"transparent",color:"#EC4899",border:"1px solid rgba(236,72,153,0.3)",borderRadius:"0.5rem",padding:"0.5rem 1rem",fontSize:"0.8rem",cursor:"pointer",fontFamily:"inherit"},
+  card:{background:"#0A1A10",border:"1px solid #1E4A2A",borderRadius:"0.75rem",padding:"1rem"},
+  row:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0.65rem 0.75rem",borderRadius:"0.6rem",border:"1px solid #1E4A2A",marginBottom:"0.3rem"},
+  pill:{background:"rgba(0,0,0,0.25)",borderRadius:"0.3rem",padding:"0.2rem 0.45rem",fontSize:"0.72rem",display:"inline-flex",alignItems:"center",gap:"0.2rem"},
+  fb:{padding:"0.3rem 0.75rem",borderRadius:"2rem",border:"1px solid",fontSize:"0.72rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"},
+  rc:{background:"#0A1A10",border:"1px solid #1E4A2A",borderRadius:"0.75rem",padding:"1rem"},
+  rh:{fontWeight:900,color:"#AAFF00",marginTop:0,marginBottom:"0.6rem",fontSize:"0.95rem",textTransform:"uppercase",letterSpacing:"0.05em"},
+  rl:{paddingLeft:"1rem",margin:0,color:"#5A8A6A",fontSize:"0.85rem",lineHeight:1.6,display:"flex",flexDirection:"column",gap:"0.4rem"},
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

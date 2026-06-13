@@ -111,7 +111,7 @@ function ts(tn,sc){const s=sc[tn]||{gp:0,stage:"Group"};return(s.gp||0)+(SBON[s.
 function pt(idx,a,c,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,n)=>s+ts(n,sc),0);t+=c.reduce((s,n)=>s+ts(n,sc)/5,0);return Math.round(t);}
 
 async function fetchLive(){
-  const base=window.WORKER_URL;
+  const base=(window.WORKER_URL||"").replace(/\/$/,"");
   if(!base||base.includes("PASTE"))return null;
   try{
     const [sr,mr]=await Promise.all([
@@ -200,7 +200,7 @@ function App(){
   },[doRefresh]);
 
   const loadMatches=useCallback(async()=>{
-    const base=window.WORKER_URL;if(!base||base.includes("PASTE"))return;
+    const base=(window.WORKER_URL||"").replace(/\/$/,"");if(!base||base.includes("PASTE"))return;
     setMLoading(true);
     try{const res=await fetch(base+"/matches");const d=await res.json();setMatches(d.matches||[]);}
     catch(e){console.error("Matches fetch:",e);}

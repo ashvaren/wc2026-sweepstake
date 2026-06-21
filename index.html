@@ -108,6 +108,7 @@ function runDraw(tpp){
   return{a,c:TEAMS.filter(t=>!assigned.has(t.name)).map(t=>t.name)};
 }
 function ts(tn,sc){const s=sc[tn]||{gp:0,stage:"Group"};return(s.gp||0)+(SBON[s.stage]||0);}
+function pgp(idx,a,comm,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,tn)=>s+(sc[tn]?.played||0),0);t+=comm.reduce((s,tn)=>s+(sc[tn]?.played||0)/5,0);return Math.round(t);}
 function pt(idx,a,c,sc){if(!a)return 0;let t=(a[idx]||[]).reduce((s,n)=>s+ts(n,sc),0);t+=c.reduce((s,n)=>s+ts(n,sc)/5,0);return Math.round(t);}
 
 async function fetchLive(){
@@ -120,8 +121,8 @@ async function fetchLive(){
     ]);
     if(!sr.ok||!mr.ok)throw new Error("API error "+sr.status);
     const [sd,md]=await Promise.all([sr.json(),mr.json()]);
-    const gp={};
-    for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"||g.stage==="ALL"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n)gp[n]=r.points||0;}}}
+    const gp={};const played={};
+    for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"||g.stage==="ALL"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n){gp[n]=r.points||0;played[n]=r.playedGames||0;}}}}
     const reached={};
     const setR=(name,sk)=>{if(!name)return;if(!reached[name]||SORD[sk]>SORD[reached[name]])reached[name]=sk;};
     for(const m of(md.matches||[])){
@@ -140,7 +141,7 @@ async function fetchLive(){
       if(m.stage==="FINAL")setR(wn,"W");
       if(m.stage==="THIRD_PLACE")setR(wn,"3rd");
     }
-    return{gp,reached};
+    return{gp,played,reached};
   }catch(e){console.error("Live fetch:",e);return null;}
 }
 function merge(live,ex){
@@ -150,7 +151,7 @@ function merge(live,ex){
     const e=ex[name]||{gp:0,stage:"Group"};
     const lg=live.gp[name]??e.gp;
     const ls=live.reached[name]||"Group";
-    r[name]={gp:lg,stage:SORD[ls]>=SORD[e.stage]?ls:e.stage,auto:true};
+    r[name]={gp:lg,stage:SORD[ls]>=SORD[e.stage]?ls:e.stage,played:live.played[name]??e.played??0,auto:true};
   });
   return r;
 }
@@ -235,7 +236,7 @@ function App(){
     return null;
   }
 
-  const board=asgn?names.map((n,i)=>({n,i,s:pt(i,asgn,comm,sc)})).sort((a,b)=>b.s-a.s):[];
+  const board=asgn?names.map((n,i)=>({n,i,s:pt(i,asgn,comm,sc),played:pgp(i,asgn,comm,sc)})).sort((a,b)=>b.s-a.s):[];
   const TABS=[{k:"setup",l:"Setup"},{k:"teams",l:"Teams",d:!asgn},{k:"scores",l:"Scores",d:!asgn},{k:"leaderboard",l:"Leaderboard",d:!asgn},{k:"rules",l:"Rules"},{k:"results",l:"Results"}];
   const S=CSS;
 
@@ -399,14 +400,14 @@ function App(){
               {lastSync&&<span style={{fontSize:"0.7rem",color:"#3A6A4A"}}>Updated {lastSync}</span>}
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",marginBottom:"1.25rem"}}>
-              {board.map(({n,i,s},pos)=>(
+              {board.map(({n,i,s,played},pos)=>(
                 <div key={i} style={{...S.card,borderColor:PC[i].bd,background:PC[i].lt}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.5rem"}}>
                     <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
                       <span style={{fontSize:"1.5rem"}}>{MDL[pos]}</span>
                       <span style={{fontWeight:900,fontSize:"1.15rem"}}>{n}</span>
                     </div>
-                    <span style={{fontWeight:900,fontSize:"1.6rem",color:PC[i].bg}}>{s}</span>
+                    <div style={{textAlign:"right"}}><span style={{fontWeight:900,fontSize:"1.6rem",color:PC[i].bg}}>{s}</span><div style={{fontSize:"0.7rem",color:PC[i].bg,opacity:0.7,marginTop:"1px"}}>{played} game{played!==1?"s":""} played</div></div>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem"}}>
                     {(asgn[i]||[]).map(tn=>{const pts=ts(tn,sc);return(<div key={tn} style={{...S.pill,borderLeft:pts>0?`3px solid ${PC[i].bg}`:"3px solid transparent"}}>{TL[tn]?.flag} {tn}{pts>0&&<strong style={{color:PC[i].bg}}> {pts}</strong>}</div>);})}

@@ -81,10 +81,10 @@ const FD_NAME={"United States":"USA","Korea Republic":"South Korea","Côte d'Ivo
 const norm=n=>FD_NAME[n]||n;
 
 const FD_STAGE={ROUND_OF_32:"R32",ROUND_OF_16:"R16",QUARTER_FINALS:"QF",SEMI_FINALS:"SF",THIRD_PLACE:"3rd",FINAL:"W"};
-const SORD={Group:0,R32:1,R16:2,QF:3,SF:4,"3rd":5,W:6};
-const SBON={Group:0,R32:3,R16:8,QF:15,SF:24,"3rd":28,W:40};
-const STAGES=["Group","R32","R16","QF","SF","3rd","W"];
-const SLBL={Group:"Group stage",R32:"Round of 32",R16:"Round of 16",QF:"Quarter-final",SF:"Semi-final","3rd":"Third place",W:"Champions 🏆"};
+const SORD={Group:0,R32:1,R16:2,QF:3,SF:4,"3rd":5,RU:6,W:7};
+const SBON={Group:0,R32:3,R16:8,QF:15,SF:24,"3rd":28,RU:34,W:40};
+const STAGES=["Group","R32","R16","QF","SF","3rd","RU","W"];
+const SLBL={Group:"Group stage",R32:"Round of 32",R16:"Round of 16",QF:"Quarter-final",SF:"Semi-final","3rd":"Third place",RU:"Runner-up",W:"Champions 🏆"};
 const PC=[
   {bg:"#3B82F6",lt:"rgba(59,130,246,0.15)",bd:"#3B82F6"},
   {bg:"#10B981",lt:"rgba(16,185,129,0.15)",bd:"#10B981"},
@@ -125,21 +125,17 @@ async function fetchLive(){
     for(const g of(sd.standings||[])){if(g.stage==="GROUP_STAGE"||g.stage==="ALL"){for(const r of(g.table||[])){const n=norm(r.team?.name||"");if(n){gp[n]=r.points||0;played[n]=r.playedGames||0;}}}}
     const reached={};
     const setR=(name,sk)=>{if(!name)return;if(!reached[name]||SORD[sk]>SORD[reached[name]])reached[name]=sk;};
+    const NEXT={R32:"R16",R16:"QF",QF:"SF",SF:"RU"};
     for(const m of(md.matches||[])){
       if(m.status!=="FINISHED")continue;
-      const sk=FD_STAGE[m.stage];if(!sk)continue;
       const w=m.score?.winner;if(!w||w==="DRAW")continue;
       const wn=norm(w==="HOME_TEAM"?m.homeTeam?.name:m.awayTeam?.name);
       const ln=norm(w==="HOME_TEAM"?m.awayTeam?.name:m.homeTeam?.name);
+      if(m.stage==="THIRD_PLACE"){setR(wn,"3rd");continue;}
+      if(m.stage==="FINAL"){setR(wn,"W");setR(ln,"RU");continue;}
+      const sk=FD_STAGE[m.stage];if(!sk)continue;
       setR(ln,sk);
-      if(m.stage!=="FINAL"&&m.stage!=="THIRD_PLACE")setR(wn,sk);
-    }
-    for(const m of(md.matches||[])){
-      if(m.status!=="FINISHED")continue;
-      const w=m.score?.winner;if(!w||w==="DRAW")continue;
-      const wn=norm(w==="HOME_TEAM"?m.homeTeam?.name:m.awayTeam?.name);
-      if(m.stage==="FINAL")setR(wn,"W");
-      if(m.stage==="THIRD_PLACE")setR(wn,"3rd");
+      if(NEXT[sk])setR(wn,NEXT[sk]);
     }
     return{gp,played,reached};
   }catch(e){console.error("Live fetch:",e);return null;}
@@ -436,7 +432,7 @@ function App(){
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.85rem"}}><tbody>
                 {[["Group stage win","3 pts per game"],["Group stage draw","1 pt per game"],["Group stage loss","0 pts"],["",""],
                   ["Reaching Round of 32","+3 pts"],["Reaching Round of 16","+8 pts"],["Reaching Quarter-final","+15 pts"],
-                  ["Reaching Semi-final","+24 pts"],["Third place","+28 pts"],["Champions 🏆","+40 pts"]
+                  ["Reaching Semi-final","+24 pts"],["Third place","+28 pts"],["Runner-up","+34 pts"],["Champions 🏆","+40 pts"]
                 ].map(([l,p],idx)=>!l?<tr key={idx}><td colSpan={2} style={{padding:"0.3rem 0"}}></td></tr>:(
                   <tr key={idx} style={{borderBottom:"1px solid #1E4A2A"}}>
                     <td style={{padding:"0.4rem 0",color:"#5A8A6A"}}>{l}</td>
